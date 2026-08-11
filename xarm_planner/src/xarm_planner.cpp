@@ -50,6 +50,29 @@ bool XArmPlanner::planJointTarget(const std::vector<double>& joint_target)
     return success;
 }
 
+bool XArmPlanner::planPositionTarget(double x, double y, double z)
+{
+    bool success = move_group_-> setPositionTarget(x, y, z);
+    if (!success)
+        RCLCPP_WARN(node_->get_logger(), " setPositionTarget: out of bounds");
+    success = (move_group_->plan(xarm_plan_) == moveit::core::MoveItErrorCode::SUCCESS);
+    if (!success)
+        RCLCPP_ERROR(node_->get_logger(), "planPositionTarget: plan failed");
+    is_trajectory_ = false;
+    return success;
+}
+bool XArmPlanner::planRPYTarget(double roll, double pitch, double yaw)
+{
+    bool success = move_group_->setRPYTarget(roll, pitch, yaw);
+    if (!success)
+        RCLCPP_WARN(node_->get_logger(), "setRPYTarget: out of bounds");
+    success = (move_group_->plan(xarm_plan_) == moveit::core::MoveItErrorCode::SUCCESS);
+    if (!success)
+        RCLCPP_ERROR(node_->get_logger(), "planRPYTarget: plan failed");
+    is_trajectory_ = false;
+    return success;
+}
+
 bool XArmPlanner::planPoseTarget(const geometry_msgs::msg::Pose& pose_target)
 {
     bool success = move_group_->setPoseTarget(pose_target);

@@ -22,6 +22,8 @@ def generate_launch_description():
     add_gripper = LaunchConfiguration('add_gripper', default=False)
     add_vacuum_gripper = LaunchConfiguration('add_vacuum_gripper', default=False)
 
+    with_planning = LaunchConfiguration('with_planning', default=False)
+
     # robot moveit servo launch
     # xarm_moveit_servo/launch/_robot_moveit_servo.launch.py
     robot_moveit_servo_launch = IncludeLaunchDescription(
@@ -36,6 +38,7 @@ def generate_launch_description():
             'add_gripper': add_gripper,
             'add_vacuum_gripper': add_vacuum_gripper,
             'robot_type': 'lite',
+            'with_planning': with_planning,
         }.items(),
     )
     

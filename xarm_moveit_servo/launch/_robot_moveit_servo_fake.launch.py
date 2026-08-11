@@ -21,6 +21,15 @@ from launch.event_handlers import OnProcessExit
 from uf_ros_lib.moveit_configs_builder import MoveItConfigsBuilder
 from uf_ros_lib.uf_robot_utils import load_yaml, generate_ros2_control_params_temp_file
 
+def parse_bool(s):
+    sl = s.lower()
+    t = sl in ['true', '1', 'yes', 'y']
+    f = sl in ['false', '0', 'no', 'n']
+    if t:
+        return True
+    if f:
+        return False
+    raise TypeError(f'Cannot parse {s} to bool!')
 
 def launch_setup(context, *args, **kwargs):
     robot_ip = LaunchConfiguration('robot_ip', default='')
@@ -67,6 +76,8 @@ def launch_setup(context, *args, **kwargs):
     # 3: spacemouse wireless
     joystick_type = LaunchConfiguration('joystick_type', default=1)
     ros_namespace = LaunchConfiguration('ros_namespace', default='').perform(context)
+
+    with_planning = LaunchConfiguration('with_planning', default=False)
 
     moveit_config_package_name = 'xarm_moveit_config'
     controllers_name = 'controllers' if ros2_control_plugin.perform(context) == 'uf_robot_hardware/UFRobotSystemHardware' else 'fake_controllers'
@@ -209,12 +220,12 @@ def launch_setup(context, *args, **kwargs):
         package='rclcpp_components',
         executable='component_container',
         composable_node_descriptions=[
-            ComposableNode(
-                package='robot_state_publisher',
-                plugin='robot_state_publisher::RobotStatePublisher',
-                name='robot_state_publisher',
-                parameters=[robot_description_parameters],
-            ),
+            #ComposableNode(
+            #    package='robot_state_publisher',
+            #    plugin='robot_state_publisher::RobotStatePublisher',
+            #    name='robot_state_publisher',
+            #    parameters=[robot_description_parameters],
+            #),
             ComposableNode(
                 package='tf2_ros',
                 plugin='tf2_ros::StaticTransformBroadcasterNode',
@@ -258,16 +269,16 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
     )
 
-    # robot_state_publisher_node = Node(
-    #     package='robot_state_publisher',
-    #     executable='robot_state_publisher',
-    #     output='screen',
-    #     parameters=[moveit_config.robot_description],
-    #     remappings=[
-    #         # ('/tf', 'tf'),
-    #         # ('/tf_static', 'tf_static'),
-    #     ]
-    # )
+    robot_state_publisher_node = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        output='screen',
+        parameters=[moveit_config.robot_description],
+        remappings=[
+            # ('/tf', 'tf'),
+            # ('/tf_static', 'tf_static'),
+        ]
+    )
 
     # servo_node = Node(
     #     package="moveit_servo",
@@ -295,22 +306,28 @@ def launch_setup(context, *args, **kwargs):
         output="screen",
     )
 
-    return [
-        # robot_state_publisher_node,
-        # RegisterEventHandler(
-        #     event_handler=OnProcessExit(
-        #         target_action=traj_controller_node,
-        #         on_exit=container,
-        #     )
-        # ),
-        rviz_node,
-        joint_state_broadcaster,
-        ros2_control_launch,
-        # servo_node,
-        container,
-        joystick_node,
-        traj_controller_node,
-    ] + controller_nodes
+    if parse_bool(with_planning.perform(context)):
+        return [
+            container,
+            joystick_node
+        ]
+    else:
+        return [
+            robot_state_publisher_node,
+            # RegisterEventHandler(
+            #     event_handler=OnProcessExit(
+            #         target_action=traj_controller_node,
+            #         on_exit=container,
+            #     )
+            # ),
+            rviz_node,
+            joint_state_broadcaster,
+            ros2_control_launch,
+            # servo_node,
+            container,
+            joystick_node,
+            traj_controller_node,
+        ] + controller_nodes
 
 
 def generate_launch_description():

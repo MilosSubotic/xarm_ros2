@@ -7,6 +7,8 @@
 
 #include "xarm_moveit_servo/xarm_joystick_input.h"
 
+#define EN_PLANNING 1
+#define ROTATE_JOYPAD 0
 
 namespace xarm_moveit_servo
 {
@@ -97,6 +99,8 @@ JoyToServoPub::JoyToServoPub(const rclcpp::NodeOptions& options)
     if (cartesian_command_in_topic_.rfind("~/", 0) == 0) {
         cartesian_command_in_topic_ = "/servo_server/" + cartesian_command_in_topic_.substr(2, cartesian_command_in_topic_.length());
     }
+    cartesian_command_in_topic_ = "/joypad/delta_twist_cmds"; // to delta_twist_cmds_mux
+
     if (joint_command_in_topic_.rfind("~/", 0) == 0) {
         joint_command_in_topic_ = "/servo_server/" + joint_command_in_topic_.substr(2, joint_command_in_topic_.length());
     }
@@ -204,6 +208,7 @@ bool JoyToServoPub::_convert_xbox360_joy_to_cmd(
         planning_frame_ = ee_frame_name_;
     }
     
+#if !EN_PLANNING
     if (buttons[XBOX360_BTN_A] || buttons[XBOX360_BTN_B] 
         || buttons[XBOX360_BTN_X] || buttons[XBOX360_BTN_Y] 
         || axes[cross_key_lr] || axes[cross_key_fb])
@@ -221,11 +226,21 @@ bool JoyToServoPub::_convert_xbox360_joy_to_cmd(
         joint->velocities.push_back((buttons[XBOX360_BTN_Y] - buttons[XBOX360_BTN_A]) * 1);
         return false;
     }
+#else
+    (void)joint;
+    (void)cross_key_lr;
+    (void)cross_key_fb;
+#endif
 
     // The bread and butter: map buttons to twist commands
     twist->twist.linear.x = axes[left_stick_fb];
     twist->twist.linear.y = axes[left_stick_lr];
-    twist->twist.linear.z = -1 * (axes[left_trigger] - axes[right_trigger]);
+    twist->twist.linear.z = -0.5 * (axes[left_trigger] - axes[right_trigger]); // 0.5 bcs triggers are [-1, 1]
+#if ROTATE_JOYPAD
+    twist->twist.linear.x *= -1;
+    twist->twist.linear.y *= -1;
+    twist->twist.linear.z *= -1;
+#endif
     twist->twist.angular.y = axes[right_stick_fb];
     twist->twist.angular.x = axes[right_stick_lr];
     twist->twist.angular.z = buttons[XBOX360_BTN_LB] - buttons[XBOX360_BTN_RB];
